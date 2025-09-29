@@ -417,6 +417,50 @@
             color: #000;
             box-shadow: 0 0 15px rgb(0, 255, 0);
         }
+        
+        /* --- MODIFIED: ADDED STYLES FOR JET SELECTION --- */
+        #jetSelectionContainer {
+            margin-top: 20px;
+            margin-bottom: 25px;
+        }
+
+        #jetSelectionContainer p {
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: rgb(145, 255, 0);
+            text-shadow: 0 0 8px rgb(145, 255, 0);
+        }
+
+        #jetChoices {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .jet-choice {
+            width: 80px;
+            height: 80px;
+            cursor: pointer;
+            border: 3px solid transparent; /* Mulai dengan border transparan */
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 5px;
+            object-fit: contain; /* Memastikan gambar pas tanpa distorsi */
+        }
+
+        .jet-choice:hover {
+            transform: scale(1.1);
+            border-color: rgb(255, 255, 255);
+        }
+
+        .jet-choice.selected {
+            border-color: rgb(0, 247, 255);
+            box-shadow: 0 0 15px rgb(0, 247, 255);
+            transform: scale(1.15);
+        }
+        /* --- END OF MODIFICATION --- */
 
         #instructions {
             margin-top: 20px;
@@ -526,6 +570,15 @@
             </h1>
             <h1>Space Battle</h1>
             <p>Destroy asteroids and enemy ships to earn RAIKU points!</p>
+            
+            <div id="jetSelectionContainer">
+                <p>CHOOSE YOUR RAIKU AIRCRAFT</p>
+                <div id="jetChoices">
+                    <img src="jet1.png" alt="Jet 1" class="jet-choice selected" data-src="jet1.png">
+                    <img src="jet2.png" alt="Jet 2" class="jet-choice" data-src="jet2.png">
+                    <img src="jet3.png" alt="Jet 3" class="jet-choice" data-src="jet3.png">
+                </div>
+            </div>
             <button id="startButton">START GAME</button>
             <div id="instructions">
                 <p>CONTROLS:</p>
@@ -600,7 +653,7 @@
         
         // Muat semua gambar yang dibutuhkan
         const playerImage = new Image();
-        playerImage.src = 'jet.png';
+        playerImage.src = 'jet1.png'; // MODIFIED: Default to jet1.png
 
         const bigAsteroidImage = new Image();
         bigAsteroidImage.src = 'big.png';
@@ -617,9 +670,8 @@
         const bossImage = new Image();
         bossImage.src = 'bos.png';
 
-        // --- NEW: Load Health Boost Image ---
         const heartImage = new Image();
-        heartImage.src = 'heart.png'; // Pastikan Anda punya file 'heart.png'
+        heartImage.src = 'heart.png'; 
 
         const bgMusic = document.getElementById('bgMusic');
         const gameOverSound = document.getElementById('gameOverSound');
@@ -637,8 +689,9 @@
         let isBossLevel = false;
         let boss = null;
         let bossesDefeated = 0;
+        let selectedJetSrc = 'jet1.png'; 
 
-        // --- NEW: Ultimate Skill Variables ---
+        // --- Ultimate Skill Variables ---
         let ultimateCharge = 0;
         const ULTIMATE_CHARGE_NEEDED = 30;
 
@@ -648,7 +701,9 @@
         let particles = [];
         let enemyBullets = [];
         let powerUps = [];
-        let homingBombs = []; // Array for ultimate skill projectiles
+        // --- NEW: ULTIMATE-SPECIFIC ARRAYS ---
+        let homingBombs = []; 
+        let shockwaves = []; 
 
         // --- Player Configuration ---
         const PLAYER_SETTINGS = {
@@ -684,7 +739,6 @@
         function handleKeyDown(e) {
             if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
             if (e.key === ' ') shoot();
-            // --- NEW: Activate Ultimate ---
             if (e.key === 'Shift') activateUltimate();
         }
 
@@ -713,16 +767,27 @@
             document.getElementById('exitButton').addEventListener('click', returnToStartMenu);
             document.addEventListener('keydown', handleKeyDown);
             document.addEventListener('keyup', handleKeyUp);
+
+            const jetChoices = document.querySelectorAll('.jet-choice');
+            jetChoices.forEach(jet => {
+                jet.addEventListener('click', () => {
+                    jetChoices.forEach(j => j.classList.remove('selected'));
+                    jet.classList.add('selected');
+                    selectedJetSrc = jet.dataset.src;
+                });
+            });
         }
 
         // --- Game Start/Reset ---
         function startGame() {
+            playerImage.src = selectedJetSrc;
+            
             gameActive = true;
             score = 0;
             level = 1;
             multiplier = 1;
             health = 100;
-            ultimateCharge = 0; // Reset ultimate
+            ultimateCharge = 0;
             asteroidsDestroyedThisLevel = 0;
             asteroidsNeededForNextLevel = 10;
             isBossLevel = false; 
@@ -745,7 +810,8 @@
             particles = [];
             enemyBullets = [];
             powerUps = [];
-            homingBombs = []; // Reset bombs
+            homingBombs = [];
+            shockwaves = [];
 
             for (let i = 0; i < 5 + level; i++) {
                 createAsteroid();
@@ -782,7 +848,9 @@
             updateBullets(enemyBullets);
             updateParticles();
             updatePowerUps(deltaTime);
-            updateHomingBombs(); // Update ultimate bombs
+            // --- NEW: UPDATE ULTIMATES ---
+            updateHomingBombs();
+            updateShockwaves(deltaTime);
 
             if (isBossLevel) {
                 if (boss) {
@@ -814,7 +882,9 @@
             drawBullets(enemyBullets, '#f55');
             drawParticles();
             drawPowerUps();
-            drawHomingBombs(); // Draw ultimate bombs
+            // --- NEW: DRAW ULTIMATES ---
+            drawHomingBombs();
+            drawShockwaves();
 
             updateUI();
 
@@ -890,7 +960,7 @@
                 bullet.x += Math.cos(bullet.angle) * bullet.speed;
                 bullet.y += Math.sin(bullet.angle) * bullet.speed;
 
-                const shouldWrap = (bulletArray === player.bullets);
+                const shouldWrap = (bulletArray === player.bullets && !bullet.isLaser); // Lasers don't wrap
                 if (shouldWrap) {
                     if (bullet.x < 0) bullet.x = canvas.width;
                     if (bullet.x > canvas.width) bullet.x = 0;
@@ -995,7 +1065,7 @@
             }
         }
         
-        // --- MODIFIED: Update Homing Fireballs ---
+        // --- NEW/MODIFIED: ULTIMATE UPDATE FUNCTIONS ---
         function updateHomingBombs() {
             for (let i = homingBombs.length - 1; i >= 0; i--) {
                 const bomb = homingBombs[i];
@@ -1019,7 +1089,6 @@
                 bomb.x += Math.cos(bomb.angle) * bomb.speed;
                 bomb.y += Math.sin(bomb.angle) * bomb.speed;
 
-                // Emit fire particles for a trail effect
                 if (Math.random() < 0.6) {
                     particles.push({
                         x: bomb.x, y: bomb.y,
@@ -1031,6 +1100,23 @@
                 }
             }
         }
+
+        function updateShockwaves(deltaTime) {
+            for (let i = shockwaves.length - 1; i >= 0; i--) {
+                const sw = shockwaves[i];
+                sw.radius += sw.speed * deltaTime;
+                sw.life -= deltaTime;
+                
+                // Fade effect
+                if (sw.life < 0.5) {
+                    sw.alpha = sw.life * 2;
+                }
+
+                if (sw.radius > sw.maxRadius || sw.life <= 0) {
+                    shockwaves.splice(i, 1);
+                }
+            }
+        }
         
         function checkCollisions() {
             // Player bullet collisions
@@ -1039,7 +1125,7 @@
                 let bulletRemoved = false;
 
                 if (isBossLevel && boss && isColliding(bullet, boss)) {
-                    boss.hp -= 10;
+                    boss.hp -= (bullet.isLaser ? 20 : 10); // Lasers do more damage
                     createExplosion(bullet.x, bullet.y, 10, '#c000ff');
                     player.bullets.splice(i, 1);
                     bulletRemoved = true;
@@ -1097,11 +1183,10 @@
                 }
             }
             
-            // --- MODIFIED: Homing fireball collisions ---
+            // --- NEW/MODIFIED: ULTIMATE COLLISION CHECKS ---
+            // Homing fireball collisions
             for (let i = homingBombs.length - 1; i >= 0; i--) {
                 const bomb = homingBombs[i];
-                let bombHit = false;
-
                 if (bomb.target && isColliding(bomb, bomb.target)) {
                     createExplosion(bomb.x, bomb.y, 50, '#ff8c00'); // Big orange explosion
                     
@@ -1124,9 +1209,41 @@
                     }
 
                     homingBombs.splice(i, 1);
-                    bombHit = true;
                 }
             }
+
+            // Shockwave collisions
+            for (const sw of shockwaves) {
+                 for (let i = asteroids.length - 1; i >= 0; i--) {
+                    const asteroid = asteroids[i];
+                    const dist = Math.hypot(sw.x - asteroid.x, sw.y - asteroid.y);
+                    // Check if the asteroid is within the shockwave's destructive path
+                    if (dist < sw.radius + asteroid.size && dist > sw.radius - sw.lineWidth) {
+                        createExplosion(asteroid.x, asteroid.y, asteroid.size, '#0ff');
+                        asteroids.splice(i, 1);
+                        score += 100 * multiplier;
+                        asteroidsDestroyedThisLevel++;
+                    }
+                }
+                for (let i = enemyShips.length - 1; i >= 0; i--) {
+                    const enemy = enemyShips[i];
+                     const dist = Math.hypot(sw.x - enemy.x, sw.y - enemy.y);
+                    if (dist < sw.radius + enemy.size && dist > sw.radius - sw.lineWidth) {
+                        createExplosion(enemy.x, enemy.y, enemy.size, '#0ff');
+                        enemyShips.splice(i, 1);
+                        score += 250 * multiplier;
+                    }
+                }
+                 if (isBossLevel && boss) {
+                    const dist = Math.hypot(sw.x - boss.x, sw.y - boss.y);
+                    if (dist < sw.radius + boss.size && dist > sw.radius - sw.lineWidth && !sw.bossHit) {
+                        boss.hp -= 150;
+                        sw.bossHit = true; // Prevent hitting multiple times
+                        if (boss.hp <= 0) defeatBoss();
+                    }
+                }
+            }
+
 
             // Player collision with environment/enemies
             if (!player.isInvincible) {
@@ -1335,19 +1452,18 @@
                 ctx.save();
                 if (bullet.isBossBullet) {
                     const glowColor = '#ff4500';
-                    ctx.fillStyle = glowColor;
-                    ctx.shadowBlur = 25;
-                    ctx.shadowColor = glowColor;
-                    ctx.beginPath();
-                    ctx.arc(bullet.x, bullet.y, bullet.size, 0, Math.PI * 2);
-                    ctx.fill();
-                } else {
-                    ctx.fillStyle = defaultColor;
-                    ctx.shadowBlur = 8;
-                    ctx.shadowColor = defaultColor;
-                    ctx.beginPath();
-                    ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.fillStyle = glowColor; ctx.shadowBlur = 25; ctx.shadowColor = glowColor;
+                    ctx.beginPath(); ctx.arc(bullet.x, bullet.y, bullet.size, 0, Math.PI * 2); ctx.fill();
+                } else if (bullet.isLaser) { // --- NEW: DRAW LASER ULTIMATE ---
+                    const laserColor = '#f0f'; // Bright magenta
+                    ctx.translate(bullet.x, bullet.y);
+                    ctx.rotate(bullet.angle);
+                    ctx.fillStyle = laserColor; ctx.shadowBlur = 15; ctx.shadowColor = laserColor;
+                    ctx.fillRect(0, -2, 25, 4); // Draw a thin rectangle for the laser
+                }
+                else {
+                    ctx.fillStyle = defaultColor; ctx.shadowBlur = 8; ctx.shadowColor = defaultColor;
+                    ctx.beginPath(); ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2); ctx.fill();
                 }
                 ctx.restore();
             });
@@ -1362,20 +1478,35 @@
             });
         }
 
-        // --- MODIFIED: Draw Homing Fireballs ---
+        // --- NEW/MODIFIED: ULTIMATE DRAWING FUNCTIONS ---
         function drawHomingBombs() {
             homingBombs.forEach(bomb => {
                 ctx.save();
                 ctx.fillStyle = '#ff4500'; // OrangeRed
                 ctx.shadowBlur = 20;
                 ctx.shadowColor = '#ffcc00'; // Yellowish glow
-                
                 ctx.beginPath();
                 ctx.arc(bomb.x, bomb.y, bomb.size, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
             });
         }
+
+        function drawShockwaves() {
+             shockwaves.forEach(sw => {
+                ctx.save();
+                ctx.globalAlpha = sw.alpha;
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = sw.lineWidth;
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = '#00ffff';
+                ctx.beginPath();
+                ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            });
+        }
+
 
         // --- Game Logic Functions ---
         function shoot() {
@@ -1409,34 +1540,66 @@
             enemyShips = [];
         }
         
-        // --- MODIFIED: Activate Ultimate Skill ---
+        // --- NEW/REFACTORED: ULTIMATE ABILITIES ---
         function activateUltimate() {
             if (ultimateCharge < ULTIMATE_CHARGE_NEEDED || !gameActive) return;
 
-            let targets = [...asteroids, ...enemyShips];
-            if (isBossLevel && boss) {
-                targets.push(boss);
+            // Call the correct ultimate based on selected jet
+            switch (selectedJetSrc) {
+                case 'jet1.png':
+                    activateHomingFireballsUltimate();
+                    break;
+                case 'jet2.png':
+                    activateShockwaveUltimate();
+                    break;
+                case 'jet3.png':
+                    activateCircularLaserUltimate();
+                    break;
+                default:
+                    activateHomingFireballsUltimate(); // Fallback
             }
-            if (targets.length === 0) return;
-
-            // Fire exactly 6 fireballs
-            for (let i = 0; i < 6; i++) {
-                // Assign a target to each fireball, cycling through the target list
-                const target = targets[i % targets.length];
-                homingBombs.push({
-                    x: player.x,
-                    y: player.y,
-                    target: target,
-                    speed: 7, // A bit faster
-                    turnSpeed: 0.08,
-                    angle: player.angle + (Math.random() - 0.5), // Slight random spread
-                    size: 7
-                });
-            }
-            
-            createExplosion(player.x, player.y, 40, '#ff8c00'); // Fiery activation explosion
             
             ultimateCharge = 0;
+        }
+
+        function activateHomingFireballsUltimate() {
+            let targets = [...asteroids, ...enemyShips];
+            if (isBossLevel && boss) targets.push(boss);
+            if (targets.length === 0) return;
+
+            createExplosion(player.x, player.y, 40, '#ff8c00'); // Fiery activation explosion
+
+            for (let i = 0; i < 6; i++) {
+                const target = targets[i % targets.length];
+                homingBombs.push({
+                    x: player.x, y: player.y, target: target,
+                    speed: 7, turnSpeed: 0.08,
+                    angle: player.angle + (Math.random() - 0.5), size: 7
+                });
+            }
+        }
+
+        function activateShockwaveUltimate() {
+            createExplosion(player.x, player.y, 50, '#00ffff'); // Cyan activation explosion
+            shockwaves.push({
+                x: player.x, y: player.y,
+                radius: 10, maxRadius: canvas.width / 1.5,
+                speed: 400, life: 1.5, lineWidth: 20, alpha: 1,
+                bossHit: false // Flag to ensure boss is only hit once
+            });
+        }
+
+        function activateCircularLaserUltimate() {
+            createExplosion(player.x, player.y, 40, '#ff00ff'); // Magenta activation explosion
+            const numLasers = 36; // Fire in all directions
+            for (let i = 0; i < numLasers; i++) {
+                player.bullets.push({
+                    x: player.x, y: player.y,
+                    angle: (i / numLasers) * Math.PI * 2,
+                    speed: 8, createdAt: Date.now(),
+                    isLaser: true // Custom flag for drawing and damage
+                });
+            }
         }
 
         function activatePowerUp(type) {
@@ -1523,11 +1686,10 @@
             document.getElementById('multiplier').textContent = `x${multiplier}`;
             document.getElementById('healthFill').style.width = `${health}%`;
 
-            // --- MODIFIED: Update Ultimate Bar ---
             const ultPercent = (ultimateCharge / ULTIMATE_CHARGE_NEEDED) * 100;
             const ultFill = document.getElementById('ultimateFill');
             ultFill.style.width = `${ultPercent}%`;
-            // Add a glow effect when the ultimate is ready
+            
             if (ultPercent >= 100) {
                 ultFill.style.boxShadow = "0 0 25px #ff8c00";
             } else {
