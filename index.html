@@ -194,20 +194,20 @@
             transform: translateX(-50%);
             width: 60%;
             text-align: center;
-            color: #c000ff; /* Neon Purple */
+            color: #51ff00; /* Neon Purple */
         }
         
         #bossUIContainer p {
             font-size: 18px;
             margin-bottom: 5px;
-            text-shadow: 0 0 8px #c000ff;
+            text-shadow: 0 0 8px #51ff00;
             font-weight: bold;
         }
         
         .bossHealthBar {
             width: 100%;
             height: 20px;
-            border: 2px solid #9400d3;
+            border: 2px solid #07d318;
             border-radius: 5px;
             overflow: hidden;
             background-color: rgba(50, 0, 80, 0.5);
@@ -216,8 +216,8 @@
         #bossHealthFill {
             width: 100%;
             height: 100%;
-            background: linear-gradient(to right, #6a0dad, #c000ff);
-            box-shadow: 0 0 10px #c000ff;
+            background: linear-gradient(to right, #008d1fbd, #07d318);
+            box-shadow: 0 0 10px #00ff15;
             transition: width 0.3s ease-in-out;
         }
         /* --- END: BOSS UI --- */
@@ -243,7 +243,7 @@
         /* --- MODIFIED FOR ULTIMATE SKILL --- */
         #ultimateContainer {
             right: 150px;
-            color: #ff8c00; /* Orange color for Ultimate */
+            color: #00d9ff; /* Orange color for Ultimate */
         }
 
         .uiBar {
@@ -266,8 +266,8 @@
         #ultimateFill {
             width: 0%; /* Start empty */
             height: 100%;
-            background: linear-gradient(to right, #e25822, #ff8c00);
-            box-shadow: 0 0 10px #ff8c00;
+            background: linear-gradient(to right, #006168, #00eeff);
+            box-shadow: 0 0 10px #00d9ff;
             transition: width 0.3s;
         }
         /* --- END MODIFICATION --- */
@@ -305,8 +305,8 @@
         }
 
         #game-art {
-            max-width: 350px; /* Adjust size as needed */
-            margin-bottom: 25px;
+            max-width: 550px; /* Adjust size as needed */
+            margin-bottom: 10px;
         }
 
         input[type="text"] {
@@ -1126,7 +1126,7 @@
 
                 if (isBossLevel && boss && isColliding(bullet, boss)) {
                     boss.hp -= (bullet.isLaser ? 20 : 10); // Lasers do more damage
-                    createExplosion(bullet.x, bullet.y, 10, '#c000ff');
+                    createExplosion(bullet.x, bullet.y, 10, '#51ff00');
                     player.bullets.splice(i, 1);
                     bulletRemoved = true;
                     if (boss.hp <= 0) {
@@ -1441,8 +1441,8 @@
             ctx.save();
             ctx.translate(boss.x, boss.y);
             ctx.rotate(boss.angle + Math.PI / 2);
-            const bossWidth = boss.size * 5; const bossHeight = boss.size * 5;
-            ctx.shadowColor = '#c000ff'; ctx.shadowBlur = 20;
+            const bossWidth = boss.size * 6; const bossHeight = boss.size * 6;
+            ctx.shadowColor = '#51ff00'; ctx.shadowBlur = 20;
             ctx.drawImage(bossImage, -bossWidth / 2, -bossHeight / 2, bossWidth, bossHeight);
             ctx.restore();
         }
